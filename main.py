@@ -190,9 +190,7 @@ def load_to_bigquery(rows):
     
     # Dedup contra BigQuery: filtrar game_ids já existentes
     all_game_ids = list({r["game_id"] for r in deduped_rows})
-    min_battle_time = min([r["battle_time"] for r in deduped_rows]) if deduped_rows else None
-    existing_ids = get_existing_game_ids(client, all_game_ids, min_battle_time)
-
+    existing_ids = get_existing_game_ids(client, all_game_ids)
     
     final_rows = [r for r in deduped_rows if r["game_id"] not in existing_ids]
     
