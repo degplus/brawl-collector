@@ -12,7 +12,7 @@ from google.cloud import bigquery
 from google.api_core import exceptions as gcp_exceptions
 
 # Configuração
-BRAWL_API_BASE = "https://api.brawlstars.com/v1"
+BRAWL_API_BASE = "https://bsproxy.royaleapi.dev/v1"
 BRAWL_API_TOKEN = os.environ.get("BRAWL_API_TOKEN")
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 BQ_DATASET = "brawl_stats"
