@@ -138,14 +138,14 @@ def parse_battle_to_rows(battle, source_player):
     
     return rows
 
-def get_existing_game_ids(client, game_ids, min_battle_time):
+def get_existing_game_ids(client, game_ids):
     """Retorna set de game_ids que já existem na fato."""
     if not game_ids:
         return set()
     
     game_ids_str = ", ".join([f"'{gid}'" for gid in game_ids])
     
-    # Filtro de partition obrigatório (últimos 7 dias)
+    # Filtro de partition obrigatório (últimos 7 dias para cobrir coletas atrasadas)
     query = f"""
         SELECT DISTINCT game_id
         FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE_FACT}`
