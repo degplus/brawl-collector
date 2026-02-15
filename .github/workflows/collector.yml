@@ -1,0 +1,40 @@
+name: Brawl Stars Collector
+
+on:
+  schedule:
+    - cron: '*/45 * * * *'  # A cada 45 minutos
+  workflow_dispatch:  # Permite executar manualmente
+
+# Concurrency global: nunca roda 2 coletas ao mesmo tempo (mesmo em branches diferentes)
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+      
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+      
+      - name: Run collector
+        env:
+          BRAWL_API_TOKEN: ${{ secrets.BRAWL_API_TOKEN }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: python main.py
