@@ -138,16 +138,19 @@ def parse_battle_to_rows(battle, source_player):
     
     return rows
 
-def get_existing_game_ids(client, game_ids):
+def get_existing_game_ids(client, game_ids, min_battle_time):
     """Retorna set de game_ids que já existem na fato."""
     if not game_ids:
         return set()
     
     game_ids_str = ", ".join([f"'{gid}'" for gid in game_ids])
+    
+    # Filtro de partition obrigatório (últimos 7 dias)
     query = f"""
         SELECT DISTINCT game_id
         FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE_FACT}`
         WHERE game_id IN ({game_ids_str})
+          AND battle_time >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
     """
     
     try:
@@ -187,7 +190,9 @@ def load_to_bigquery(rows):
     
     # Dedup contra BigQuery: filtrar game_ids já existentes
     all_game_ids = list({r["game_id"] for r in deduped_rows})
-    existing_ids = get_existing_game_ids(client, all_game_ids)
+    min_battle_time = min([r["battle_time"] for r in deduped_rows]) if deduped_rows else None
+    existing_ids = get_existing_game_ids(client, all_game_ids, min_battle_time)
+
     
     final_rows = [r for r in deduped_rows if r["game_id"] not in existing_ids]
     
