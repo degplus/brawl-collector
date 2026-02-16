@@ -9,7 +9,7 @@ BQ_DATASET = "brawl_stats"
 BQ_TABLE_DIM = "dim_source_players"
 BQ_TABLE_FACT = "fact_battle_players"
 
-BRAWL_API_BASE = "https://api.brawlstars.com/v1"
+BRAWL_API_BASE = "https://bsproxy.royaleapi.dev/v1"
 HEADERS = {"Authorization": f"Bearer {BRAWL_API_TOKEN}"}
 
 ALLOWED_TYPES = ["friendly", "tournament", "championshipChallenge"]
