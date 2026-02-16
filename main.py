@@ -3,9 +3,6 @@ import requests
 from datetime import datetime
 from google.cloud import bigquery
 
-# ==============================
-# CONFIGURAÇÕES
-# ==============================
 BRAWL_API_TOKEN = os.environ.get("BRAWL_API_TOKEN")
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID")
 BQ_DATASET = "brawl_stats"
@@ -15,7 +12,6 @@ BQ_TABLE_FACT = "fact_battle_players"
 BRAWL_API_BASE = "https://api.brawlstars.com/v1"
 HEADERS = {"Authorization": f"Bearer {BRAWL_API_TOKEN}"}
 
-# Filtros de batalhas competitivas
 ALLOWED_TYPES = ["friendly", "tournament", "championshipChallenge"]
 BLOCKED_MODES = [
     "soloShowdown", "duoShowdown", "trioShowdown",
@@ -23,12 +19,7 @@ BLOCKED_MODES = [
     "duels", "basketBrawl", "unknown"
 ]
 
-
-# ==============================
-# FUNÇÕES AUXILIARES
-# ==============================
 def load_players_dict(client):
-    """Carrega dim_source_players em memória para enriquecimento."""
     query = f"""
         SELECT PL_TAG, PL_NAME, PL_CTEAM, PL_REGION, PL_NATION, PL_LINK
         FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE_DIM}`
@@ -49,9 +40,7 @@ def load_players_dict(client):
     print(f"[INFO] {len(players_dict)} players carregados para enriquecimento")
     return players_dict
 
-
 def get_active_players(client):
-    """Retorna lista de jogadores ativos da dimensão."""
     query = f"""
         SELECT PL_TAG, PL_NAME, PL_CTEAM, PL_REGION
         FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE_DIM}`
@@ -71,9 +60,7 @@ def get_active_players(client):
     print(f"[INFO] {len(players)} players ativos encontrados")
     return players
 
-
 def fetch_battles(player_tag):
-    """Busca batalhas de um jogador via API."""
     url = f"{BRAWL_API_BASE}/players/{player_tag.replace('#', '%23')}/battlelog"
     
     try:
@@ -85,12 +72,7 @@ def fetch_battles(player_tag):
         print(f"[WARN] Erro ao buscar batalhas de {player_tag}: {e}")
         return []
 
-
 def parse_battles(battles, source_player_tag, source_player_name, source_player_team, source_player_region, players_dict):
-    """
-    Transforma JSON de batalhas em linhas para BigQuery.
-    Aplica filtros competitivos, identifica times, inverte resultados.
-    """
     rows = []
     
     for item in battles:
@@ -99,54 +81,45 @@ def parse_battles(battles, source_player_tag, source_player_name, source_player_
             event = item.get("event", {})
             battle_time_str = item.get("battleTime", "")
             
-            # Filtro 1: Tipo de batalha
             if battle.get("type") not in ALLOWED_TYPES:
                 continue
             
-            # Filtro 2: Modo de jogo
             if event.get("mode") in BLOCKED_MODES:
                 continue
             
-            # Filtro 3: Event ID inválido
             if event.get("id") == 0:
                 continue
             
-            # Validar estrutura de times (2 times com 3 jogadores cada)
             teams = battle.get("teams", [])
             if len(teams) != 2 or len(teams[0]) != 3 or len(teams[1]) != 3:
                 continue
             
-            # Parse timestamps
             battle_time = datetime.strptime(battle_time_str, "%Y%m%dT%H%M%S.%fZ")
             date_formatted = battle_time.strftime("%d/%m/%Y %H:%M:%S")
             
-            # IDs
             game_id = f"{battle_time_str}_{event.get('id', 0)}"
             api_result = battle.get("result", "")
             
-            # Star Player
             star_player = battle.get("starPlayer")
             star_tag = star_player.get("tag") if star_player else None
             star_name = star_player.get("name") if star_player else None
             star_brawler_id = star_player.get("brawler", {}).get("id") if star_player else None
             star_brawler_name = star_player.get("brawler", {}).get("name") if star_player else None
             
-            # Descobrir time do source_player
             source_team_number = None
             for idx, team in enumerate(teams):
                 for player in team:
                     if player.get("tag") == source_player_tag:
-                        source_team_number = idx + 1  # 1 ou 2
+                        source_team_number = idx + 1
                         break
                 if source_team_number:
                     break
             
             if not source_team_number:
-                continue  # Source player não encontrado (erro de API)
+                continue
             
-            # Processar 6 jogadores (3 por time)
             for team_idx, team in enumerate(teams):
-                team_number = team_idx + 1  # 1 ou 2
+                team_number = team_idx + 1
                 
                 for player in team:
                     player_tag = player.get("tag", "")
@@ -154,13 +127,9 @@ def parse_battles(battles, source_player_tag, source_player_name, source_player_
                     brawler = player.get("brawler", {})
                     brawler_id = brawler.get("id")
                     brawler_name = brawler.get("name", "")
-                    brawler_power = brawler.get("power", -1)
-                    brawler_trophies = brawler.get("trophies", -1)
                     
-                    # PL_PLACE (só para source_player)
                     pl_place = source_team_number if player_tag == source_player_tag else None
                     
-                    # PL_RESULT (lógica de inversão por time)
                     if api_result == "draw":
                         pl_result = "draw"
                     else:
@@ -169,18 +138,16 @@ def parse_battles(battles, source_player_tag, source_player_name, source_player_
                         else:
                             pl_result = "defeat" if api_result == "victory" else "victory"
                     
-                    # URLs imagens (brawlify)
                     b_img = f"https://cdn.brawlify.com/brawlers/borderless/{brawler_id}.png" if brawler_id else None
                     m_img = f"https://cdn.brawlify.com/maps/regular/{event.get('id')}.png"
                     
-                    # Enriquecimento (busca na dim_source_players)
                     player_data = players_dict.get(player_tag, {})
                     pl_team = player_data.get("PL_CTEAM")
                     pl_img = player_data.get("PL_LINK")
                     
                     row = {
                         "game_id": game_id,
-                        "Game": None,  # Calculado na VIEW
+                        "Game": None,
                         "Battle Time": battle_time.isoformat(),
                         "Event ID": event.get("id"),
                         "Mode": event.get("mode"),
@@ -218,15 +185,12 @@ def parse_battles(battles, source_player_tag, source_player_name, source_player_
     
     return rows
 
-
 def get_existing_game_ids(client, game_ids):
-    """Retorna set de game_ids que já existem na fato."""
     if not game_ids:
         return set()
     
     game_ids_str = ", ".join([f"'{gid}'" for gid in game_ids])
     
-    # Filtro de partition obrigatório (últimos 7 dias)
     query = f"""
         SELECT DISTINCT game_id
         FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE_FACT}`
@@ -237,22 +201,19 @@ def get_existing_game_ids(client, game_ids):
     try:
         rows = client.query(query).result()
         existing = {row.game_id for row in rows}
-        print(f"[INFO] {len(existing)} game_ids já existem no BigQuery")
+        print(f"[INFO] {len(existing)} game_ids ja existem no BigQuery")
         return existing
     except Exception as e:
         print(f"[WARN] Erro ao consultar game_ids existentes: {e}")
         return set()
 
-
 def load_to_bigquery(all_rows):
-    """Carrega linhas no BigQuery com dedup."""
     if not all_rows:
         print("[INFO] Nenhuma linha para carregar")
         return
     
     client = bigquery.Client(project=GCP_PROJECT_ID)
     
-    # Dedup intra-run (mesma execução)
     seen = set()
     deduped_rows = []
     for row in all_rows:
@@ -261,9 +222,8 @@ def load_to_bigquery(all_rows):
             seen.add(key)
             deduped_rows.append(row)
     
-    print(f"[INFO] Dedup intra-run: {len(all_rows)} → {len(deduped_rows)} linhas")
+    print(f"[INFO] Dedup intra-run: {len(all_rows)} -> {len(deduped_rows)} linhas")
     
-    # Dedup inter-run (consulta BigQuery)
     all_game_ids = list({r["game_id"] for r in deduped_rows})
     existing_ids = get_existing_game_ids(client, all_game_ids)
     
@@ -275,7 +235,6 @@ def load_to_bigquery(all_rows):
     
     print(f"[INFO] Carregando {len(new_rows)} linhas novas no BigQuery...")
     
-        # Schema explícito (importante para campos com espaços)
     schema = [
         bigquery.SchemaField("game_id", "STRING", mode="REQUIRED"),
         bigquery.SchemaField("Game", "INTEGER"),
@@ -321,22 +280,15 @@ def load_to_bigquery(all_rows):
     
     print(f"[SUCCESS] {len(new_rows)} linhas carregadas com sucesso!")
 
-
-# ==============================
-# MAIN
-# ==============================
 def main():
-    print(f"[START] Coletor Brawl Stars → BigQuery ({datetime.utcnow().isoformat()})")
+    print(f"[START] Coletor Brawl Stars -> BigQuery ({datetime.utcnow().isoformat()})")
     
     client = bigquery.Client(project=GCP_PROJECT_ID)
     
-    # 1. Carregar players_dict (para enriquecimento)
     players_dict = load_players_dict(client)
     
-    # 2. Buscar players ativos
     players = get_active_players(client)
     
-    # 3. Coletar batalhas de cada player
     all_rows = []
     for player in players:
         print(f"[INFO] Buscando batalhas de {player['tag']}...")
@@ -355,10 +307,9 @@ def main():
     
     print(f"[INFO] Total de linhas coletadas (bruto): {len(all_rows)}")
     
-    # 4. Carregar no BigQuery
     load_to_bigquery(all_rows)
     
-    print("[END] Coleta concluída")
+    print("[END] Coleta concluida")
 
-
-if __name__ == "
+if __name__ == "__main__":
+    main()
