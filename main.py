@@ -275,7 +275,7 @@ def load_to_bigquery(all_rows):
     
     print(f"[INFO] Carregando {len(new_rows)} linhas novas no BigQuery...")
     
-    # Schema explícito (importante para campos com espaços)
+        # Schema explícito (importante para campos com espaços)
     schema = [
         bigquery.SchemaField("game_id", "STRING", mode="REQUIRED"),
         bigquery.SchemaField("Game", "INTEGER"),
