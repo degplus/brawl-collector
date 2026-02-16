@@ -235,6 +235,29 @@ def load_to_bigquery(all_rows):
     
     print(f"[INFO] Carregando {len(new_rows)} linhas novas no BigQuery...")
     
+    try:
+        query = f"SELECT MAX(Game) as max_game FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE_FACT}`"
+        result = client.query(query).result()
+        max_game = next(result).max_game or 0
+        print(f"[INFO] Ultimo Game no BigQuery: {max_game}")
+    except Exception as e:
+        print(f"[WARN] Erro ao buscar max Game, iniciando do 1: {e}")
+        max_game = 0
+    
+    sorted_rows = sorted(new_rows, key=lambda x: (x["Battle Time"], x["game_id"]))
+    
+    game_id_to_number = {}
+    game_counter = max_game + 1
+    
+    for row in sorted_rows:
+        gid = row["game_id"]
+        if gid not in game_id_to_number:
+            game_id_to_number[gid] = game_counter
+            game_counter += 1
+        row["Game"] = game_id_to_number[gid]
+    
+    print(f"[INFO] Game numbers atribuidos: {max_game + 1} a {game_counter - 1}")
+    
     schema = [
         bigquery.SchemaField("game_id", "STRING", mode="REQUIRED"),
         bigquery.SchemaField("Game", "INTEGER"),
@@ -275,10 +298,10 @@ def load_to_bigquery(all_rows):
         write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
     )
     
-    job = client.load_table_from_json(new_rows, table_id, job_config=job_config)
+    job = client.load_table_from_json(sorted_rows, table_id, job_config=job_config)
     job.result()
     
-    print(f"[SUCCESS] {len(new_rows)} linhas carregadas com sucesso!")
+    print(f"[SUCCESS] {len(sorted_rows)} linhas carregadas com sucesso!")
 
 def main():
     print(f"[START] Coletor Brawl Stars -> BigQuery ({datetime.utcnow().isoformat()})")
