@@ -2,8 +2,16 @@ name: Brawl Stars Collector
 
 on:
   schedule:
-    - cron: '*/45 * * * *'  # A cada 45 minutos
-  workflow_dispatch:  # Permite executar manualmente
+    # Escolha UMA opção abaixo (deixe as outras comentadas):
+    
+    # - cron: '*/30 * * * *'  # A cada 30 minutos (torneios)
+    # - cron: '*/45 * * * *'    # A cada 45 minutos (padrão) ✅
+     - cron: '0 * * * *'     # A cada 1 hora (economia)
+    # - cron: '0 */2 * * *'   # A cada 2 horas (máxima economia)
+    # - cron: '*/5 * * * *'   # A cada 5 minutos (CUIDADO: uso alto!)
+    
+  workflow_dispatch:  # Execução manual
+
 
 # Concurrency global: nunca roda 2 coletas ao mesmo tempo (mesmo em branches diferentes)
 concurrency:
