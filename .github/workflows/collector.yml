@@ -13,7 +13,6 @@ on:
   workflow_dispatch:  # Execução manual
 
 
-# Concurrency global: nunca roda 2 coletas ao mesmo tempo (mesmo em branches diferentes)
 concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: true
@@ -46,3 +45,9 @@ jobs:
           BRAWL_API_TOKEN: ${{ secrets.BRAWL_API_TOKEN }}
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
         run: python main.py
+
+      # ✅ NOVO PASSO: Atualiza tabela de filtros do dashboard
+      - name: Update dim_filters
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: python update_dim_filters.py
