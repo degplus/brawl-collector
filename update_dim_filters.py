@@ -21,6 +21,7 @@ SELECT DISTINCT
     map,
     player_team,
     player_name,
+    player_tag,
     brawler_name,
     DATE(battle_time) as battle_date
 FROM `brawl-sandbox.brawl_stats.vw_battles_python`
@@ -30,7 +31,8 @@ ORDER BY
     mode, 
     map, 
     player_team, 
-    player_name, 
+    player_name,
+    player_tag,
     brawler_name
 """
 
