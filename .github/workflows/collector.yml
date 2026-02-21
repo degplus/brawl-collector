@@ -5,10 +5,10 @@ on:
     # Escolha UMA opção abaixo (deixe as outras comentadas):
     
     # - cron: '*/30 * * * *'  # A cada 30 minutos (torneios)
-     - cron: '*/45 * * * *'    # A cada 45 minutos (padrão) ✅
+    # - cron: '*/45 * * * *'    # A cada 45 minutos (padrão) ✅
     # - cron: '0 * * * *'     # A cada 1 hora (economia)
     # - cron: '0 */2 * * *'   # A cada 2 horas (máxima economia)
-    # - cron: '*/5 * * * *'   # A cada 5 minutos (CUIDADO: uso alto!)
+     - cron: '*/5 * * * *'   # A cada 5 minutos (CUIDADO: uso alto!)
     
   workflow_dispatch:  # Execução manual
 
