@@ -195,8 +195,7 @@ def get_existing_game_ids(client, game_ids):
         SELECT DISTINCT game_id
         FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE_FACT}`
         WHERE game_id IN ({game_ids_str})
-          AND `Battle Time` >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 7 DAY)
-    """
+        """
     
     try:
         rows = client.query(query).result()
